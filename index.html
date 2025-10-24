@@ -1,0 +1,187 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Memoria Yavalva – Compat</title>
+<style>
+  :root{ --bg:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --tile:#0b1222; }
+  *{ box-sizing:border-box }
+  body{
+    margin:0; min-height:100dvh; display:flex; flex-direction:column;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    background: radial-gradient(1200px 600px at 10% -20%, #12213f 0%, #0b1020 60%, #070b14 100%);
+    color:var(--text);
+  }
+  header{
+    padding:18px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .brand{ display:flex; gap:12px; align-items:center; }
+  .logo{ width:36px; height:36px; border-radius:10px;
+         background:linear-gradient(135deg,#22d3ee,#6366f1); display:grid; place-items:center; color:#001014; font-weight:900; }
+  .panel{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .stat{ font-size:14px; padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03); }
+  .btn{ padding:10px 14px; border:0; border-radius:12px; cursor:pointer;
+        background:linear-gradient(135deg,#22d3ee,#14b8a6); color:#05252a; font-weight:800; }
+  main{ flex:1; display:grid; place-items:center; padding:18px; }
+  .grid{ width:min(1040px,95vw); display:grid; gap:12px; grid-template-columns:repeat(6,1fr); }
+  @media (max-width:1024px){ .grid{ grid-template-columns:repeat(5,1fr); } }
+  @media (max-width:820px){ .grid{ grid-template-columns:repeat(4,1fr); } }
+  @media (max-width:560px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+
+  .card{ aspect-ratio:1/1; background:transparent; border:0; padding:0; }
+  .tile{
+    position:relative; width:100%; height:100%;
+    border-radius:14px; overflow:hidden;
+    box-shadow:0 10px 22px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.05);
+    background:var(--tile);
+  }
+  .face{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .front{ display:flex; }
+  .back{ display:none; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(34,211,238,.06)); }
+  .card.show .front{ display:none; }
+  .card.show .back{ display:flex; }
+
+  .badge{
+    width:68%; height:68%;
+    border-radius:14px; border:2px dashed rgba(255,255,255,.14);
+    display:grid; place-items:center; color:var(--muted); font-weight:800; letter-spacing:.6px; text-transform:uppercase;
+    background: radial-gradient(240px 140px at 30% 20%, rgba(255,255,255,.06), rgba(255,255,255,0) 60%);
+  }
+  .letter{
+    width:66%; aspect-ratio:1/1; border-radius:999px; display:grid; place-items:center;
+    color:#07121f; font-weight:900; font-size:clamp(28px,7.5vw,54px); user-select:none;
+    box-shadow:0 8px 20px rgba(0,0,0,.35) inset, 0 8px 20px rgba(0,0,0,.25);
+  }
+  footer{ padding:14px; text-align:center; font-size:13px; color:var(--muted); }
+
+  .modal{ position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.45); z-index:40; }
+  .modal.show{ display:grid; }
+  .dialog{
+    width:min(560px,92vw); border-radius:18px; padding:22px;
+    background:linear-gradient(180deg, rgba(34,211,238,.08), rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.12); box-shadow:0 30px 80px rgba(0,0,0,.45);
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .pill{ padding:8px 12px; border-radius:999px; background:rgba(34,211,238,.15); color:#a5f3fc; border:1px solid rgba(34,211,238,.35); font-weight:700; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">Y</div>
+    <div>
+      <div style="font-weight:900; font-size:18px">Memoria Yavalva</div>
+      <div style="font-size:12px; color:var(--muted)">12 parejas (modo compatibilidad)</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="stat">⏱️ Tiempo: <b id="time">00:00</b></div>
+    <div class="stat">🎯 Movimientos: <b id="moves">0</b></div>
+    <button class="btn" id="restart">Reiniciar</button>
+  </div>
+</header>
+
+<main><section id="grid" class="grid" aria-label="tablero de memoria"></section></main>
+<footer>Hecho con cariño para Yavalva 💙</footer>
+
+<div class="modal" id="winModal" role="dialog" aria-modal="true">
+  <div class="dialog">
+    <h2>¡Lo lograste! 🎉</h2>
+    <p>Descubriste las 12 parejas.</p>
+    <div class="row">
+      <span class="pill">⏱️ <span id="winTime">00:00</span></span>
+      <span class="pill">🎯 <span id="winMoves">0</span> movs</span>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn" id="playAgain">Jugar otra vez</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PAIRS = 12;
+const LETTERS = Array.from({length: PAIRS}, (_,i)=> String.fromCharCode(65+i)); // A..L
+const COLORS = ["#22d3ee","#f472b6","#f59e0b","#10b981","#a78bfa","#fb7185","#60a5fa","#34d399","#fbbf24","#f87171","#2dd4bf","#ef4444"];
+
+const grid = document.getElementById('grid');
+const timeEl = document.getElementById('time');
+const movesEl = document.getElementById('moves');
+const winModal = document.getElementById('winModal');
+const winTime = document.getElementById('winTime');
+const winMoves = document.getElementById('winMoves');
+document.getElementById('restart').onclick = () => { winModal.classList.remove('show'); reset(); };
+document.getElementById('playAgain').onclick = () => { winModal.classList.remove('show'); reset(); };
+
+let deck=[], first=null, second=null, lock=false, matches=0, moves=0, startTs=0, timerId=null;
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a; }
+function pad(n){return (n<10?'0':'')+n}
+function tick(){ const s=Math.floor((Date.now()-startTs)/1000); timeEl.textContent=`${pad(Math.floor(s/60))}:${pad(s%60)}`; }
+
+function makeCard(letter, color){
+  const li = document.createElement('button');
+  li.className='card';
+  li.innerHTML = `
+    <div class="tile">
+      <div class="face front"><div class="badge">YAVALVA</div></div>
+      <div class="face back">
+        <div class="letter" style="background:${color}">${letter}</div>
+      </div>
+    </div>`;
+  li.dataset.key = letter;
+  li.onclick = () => onFlip(li);
+  return li;
+}
+
+function render(){
+  grid.innerHTML='';
+  deck.forEach(c => grid.appendChild(makeCard(c.key, c.color)));
+}
+
+function build(){
+  const base = LETTERS.map((L,i)=> ({ key:L, color: COLORS[i%COLORS.length] }));
+  return shuffle(base.concat(base));
+}
+
+function reset(){
+  clearInterval(timerId);
+  timeEl.textContent = '00:00';
+  moves = 0; movesEl.textContent = '0';
+  first = second = null; lock=false; matches=0;
+  deck = build(); render();
+  startTs = Date.now(); timerId = setInterval(tick, 500);
+}
+
+function onFlip(el){
+  if(lock || el.classList.contains('matched') || (first && el===first)) return;
+  el.classList.add('show');
+  if(!first){ first=el; return; }
+  second=el; lock=true; moves++; movesEl.textContent = moves;
+
+  const ok = first.dataset.key === second.dataset.key;
+  if(ok){
+    setTimeout(()=> {
+      first.classList.add('matched'); second.classList.add('matched');
+      first.classList.remove('show');  second.classList.remove('show');
+      first=second=null; lock=false; matches++;
+      if(matches === deck.length/2){
+        clearInterval(timerId);
+        winTime.textContent = timeEl.textContent;
+        winMoves.textContent = String(moves);
+        winModal.classList.add('show');
+      }
+    }, 180);
+  } else {
+    setTimeout(()=>{
+      first.classList.remove('show'); second.classList.remove('show');
+      first=second=null; lock=false;
+    }, 500);
+  }
+}
+
+reset();
+</script>
+</body>
+</html>
