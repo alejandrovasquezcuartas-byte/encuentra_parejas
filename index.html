@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8" />
@@ -42,6 +42,16 @@
   .back{ display:none; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(34,211,238,.06)); }
   .card.show .front{ display:none; }
   .card.show .back{ display:flex; }
+
+  /* NUEVO: mantener visibles las parejas acertadas */
+  .card.matched .front{ display:none; }
+  .card.matched .back{ display:flex; }
+  .card.matched .letter{
+    outline:2px solid rgba(16,185,129,.9);
+    box-shadow:0 0 0 2px rgba(16,185,129,.6), 0 0 28px rgba(16,185,129,.25);
+    animation:pop .18s ease-out;
+  }
+  @keyframes pop{ from{transform:scale(.94);} to{transform:scale(1);} }
 
   .badge{
     width:68%; height:68%;
@@ -163,8 +173,9 @@ function onFlip(el){
   const ok = first.dataset.key === second.dataset.key;
   if(ok){
     setTimeout(()=> {
-      first.classList.add('matched'); second.classList.add('matched');
-      first.classList.remove('show');  second.classList.remove('show');
+      first.classList.add('matched');
+      second.classList.add('matched');
+      // ✅ ya no removemos "show" para mantener visibles las parejas
       first=second=null; lock=false; matches++;
       if(matches === deck.length/2){
         clearInterval(timerId);
